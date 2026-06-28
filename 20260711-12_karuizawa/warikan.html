@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>軽井沢旅行 ― 割り勘</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* ── セキュリティ注意 ──────────────────────────────────────────
+     Firebase Realtime Database は現在テストモード（誰でも読み書き可能）です。
+     旅行終了後はセキュリティルールを締める or /payments を削除してください。
+     Firebase Console > Realtime Database > ルール
+     { "rules": { ".read": false, ".write": false } }
+  ─────────────────────────────────────────────────────────────── */
+
+  :root {
+    --ink:   #3B6D11;
+    --deep:  #085041;
+    --mint:  #9FE1CB;
+    --hill:  #C0DD97;
+    --paper: #FFFDF5;
+    --sky:   #EAF6FF;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Klee One', sans-serif;
+    background: #d8e8c8;
+    min-height: 100vh;
+    padding: 16px 12px 40px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .warikan {
+    width: 100%; max-width: 420px;
+    background: var(--paper);
+    border: 2.5px dashed var(--ink);
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,.12);
+  }
+
+  /* ── ヒーロー ── */
+  .hero {
+    background: linear-gradient(165deg, #1a4a2e 0%, #085041 55%, #0d6655 100%);
+    padding: 28px 24px 36px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::after {
+    content: '';
+    position: absolute; bottom: -1px; left: 0; right: 0; height: 28px;
+    background: var(--paper);
+    clip-path: ellipse(55% 100% at 50% 100%);
+  }
+  .hero-eyebrow {
+    font-size: 10.5px; letter-spacing: .22em; color: var(--mint);
+    text-transform: uppercase; margin-bottom: 10px;
+  }
+  .hero-title {
+    font-size: 28px; font-weight: 600; line-height: 1.2; margin-bottom: 4px;
+  }
+  .hero-sub { font-size: 13px; color: rgba(255,255,255,.65); }
+
+  /* ── セクション ── */
+  .section { padding: 20px 20px 16px; }
+  .section-tint { background: rgba(159,225,203,.08); }
+  .sec-head {
+    display: flex; align-items: center; gap: 7px; margin-bottom: 14px;
+  }
+  .sec-icon {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--deep); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; flex-shrink: 0;
+  }
+  .sec-title { font-size: 16px; font-weight: 600; color: var(--deep); }
+
+  /* ── フォーム ── */
+  .form-group { margin-bottom: 14px; }
+  .form-label {
+    font-size: 12px; font-weight: 600; color: var(--deep);
+    margin-bottom: 6px; display: block;
+  }
+
+  /* 支払者ボタン */
+  .payer-btns {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .payer-btn {
+    padding: 7px 14px;
+    border: 2px solid #ddeec0;
+    border-radius: 999px;
+    background: #f8fdf2;
+    font-family: 'Klee One', sans-serif;
+    font-size: 14px; font-weight: 600;
+    color: #4a6a3a;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .payer-btn.selected {
+    background: var(--deep);
+    border-color: var(--deep);
+    color: #fff;
+  }
+
+  /* テキスト・数値入力 */
+  .form-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #ddeec0;
+    border-radius: 12px;
+    background: #f8fdf2;
+    font-family: 'Klee One', sans-serif;
+    font-size: 15px;
+    color: #1a2a14;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .form-input:focus { border-color: var(--ink); }
+
+  /* チェックボックス（対象者） */
+  .participants-grid {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .participant-check {
+    display: none;
+  }
+  .participant-label {
+    padding: 7px 14px;
+    border: 2px solid #ddeec0;
+    border-radius: 999px;
+    background: #f8fdf2;
+    font-family: 'Klee One', sans-serif;
+    font-size: 14px; font-weight: 600;
+    color: #4a6a3a;
+    cursor: pointer;
+    transition: all .15s;
+    user-select: none;
+  }
+  .participant-check:checked + .participant-label {
+    background: var(--mint);
+    border-color: var(--ink);
+    color: var(--deep);
+  }
+
+  /* 登録ボタン */
+  .btn-primary {
+    width: 100%;
+    padding: 13px;
+    background: var(--deep);
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    font-family: 'Klee One', sans-serif;
+    font-size: 16px; font-weight: 600;
+    cursor: pointer;
+    transition: opacity .15s;
+    margin-top: 4px;
+  }
+  .btn-primary:active { opacity: .8; }
+
+  /* F6用プレースホルダー（将来: レシート読取ボタンをここに配置） */
+  .receipt-placeholder {
+    text-align: center;
+    font-size: 11px;
+    color: #aaa;
+    margin-bottom: 10px;
+    min-height: 20px;
+    /* Future: insert receipt-scan button here */
+  }
+
+  /* ── 仕切り ── */
+  .divider-line {
+    height: 2px;
+    background: repeating-linear-gradient(90deg, var(--hill) 0, var(--hill) 8px, transparent 8px, transparent 14px);
+    margin: 0 20px;
+  }
+
+  /* ── 支払い一覧 ── */
+  .payment-list { display: flex; flex-direction: column; gap: 10px; }
+  .payment-card {
+    background: #f8fdf2;
+    border: 1.5px solid #ddeec0;
+    border-radius: 14px;
+    padding: 12px 14px;
+  }
+  .payment-card-top {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 6px;
+  }
+  .payment-purpose {
+    font-size: 14px; font-weight: 600; color: #1a2a14; flex: 1;
+  }
+  .payment-amount {
+    font-size: 16px; font-weight: 600; color: var(--deep);
+    margin-left: 10px; white-space: nowrap;
+  }
+  .payment-meta {
+    font-size: 11.5px; color: #7a8a5a; margin-bottom: 8px;
+  }
+  .payment-actions { display: flex; gap: 6px; }
+  .btn-edit, .btn-delete {
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-family: 'Klee One', sans-serif;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: opacity .15s;
+  }
+  .btn-edit {
+    background: var(--sky);
+    color: var(--deep);
+    border: 1.5px solid #c8dff0;
+  }
+  .btn-delete {
+    background: #fde8e8;
+    color: #c0392b;
+    border: 1.5px solid #f5c6c6;
+  }
+  .btn-edit:active, .btn-delete:active { opacity: .7; }
+
+  .empty-state {
+    text-align: center;
+    color: #b0ba9a;
+    font-size: 14px;
+    padding: 20px 0;
+  }
+
+  /* ── サマリー ── */
+  .summary-grid {
+    display: grid; grid-template-columns: 1fr; gap: 10px;
+  }
+  .summary-card {
+    background: var(--sky);
+    border: 1.5px solid #c8dff0;
+    border-radius: 14px;
+    padding: 14px 12px;
+    text-align: center;
+  }
+  .summary-label {
+    font-size: 11px; color: var(--deep); margin-bottom: 6px; font-weight: 600;
+  }
+  .summary-value {
+    font-size: 20px; font-weight: 600; color: var(--deep);
+  }
+
+  /* ── 精算 ── */
+  .settlement-list { display: flex; flex-direction: column; gap: 8px; }
+  .settlement-row {
+    background: #f8fdf2;
+    border: 1.5px solid #ddeec0;
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 14px; font-weight: 600;
+    color: #1a2a14;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .settlement-amount {
+    margin-left: auto;
+    color: var(--deep);
+    font-size: 15px;
+  }
+  .settlement-arrow { color: var(--ink); }
+
+  /* ── モーダル（編集） ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 100;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 0 12px 16px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    width: 100%; max-width: 420px;
+    background: var(--paper);
+    border: 2.5px dashed var(--ink);
+    border-radius: 22px;
+    padding: 22px 20px 20px;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  .modal-title {
+    font-size: 16px; font-weight: 600; color: var(--deep);
+    margin-bottom: 16px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-close {
+    background: none; border: none; font-size: 22px; cursor: pointer; color: #888;
+    line-height: 1;
+  }
+  .modal-actions { display: flex; gap: 8px; margin-top: 14px; }
+  .btn-secondary {
+    flex: 1;
+    padding: 11px;
+    background: #f0f0f0;
+    color: #555;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Klee One', sans-serif;
+    font-size: 15px; font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-save {
+    flex: 2;
+    padding: 11px;
+    background: var(--deep);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Klee One', sans-serif;
+    font-size: 15px; font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* ── 接続状態 ── */
+  .connection-badge {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .connection-badge.online { background: #e6f9ee; color: #1a8a4a; }
+  .connection-badge.offline { background: #fde8e8; color: #c0392b; }
+  .dot-pulse {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: currentColor;
+  }
+
+  /* ── フロートナビボタン ── */
+  .float-nav {
+    position: fixed; bottom: 24px; right: 20px;
+    z-index: 100;
+    text-decoration: none;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: var(--deep);
+    color: #fff;
+    border-radius: 999px;
+    padding: 12px 18px;
+    box-shadow: 0 4px 16px rgba(8,80,65,.35);
+    font-family: 'Klee One', sans-serif;
+    font-size: 13px; font-weight: 600;
+    transition: opacity .15s, transform .15s;
+  }
+  .float-nav:active { opacity: .8; transform: scale(.95); }
+  .float-nav .fn-icon { font-size: 20px; line-height: 1; }
+</style>
+</head>
+<body>
+
+<div class="warikan">
+
+  <!-- ── ヒーロー ── -->
+  <div class="hero">
+    <div class="hero-eyebrow">KARUIZAWA TRIP 2026</div>
+    <div class="hero-title">💰 割り勘</div>
+    <div class="hero-sub">5人の旅費を公平に精算しよう</div>
+  </div>
+
+  <!-- ── F1：支払い入力フォーム ── -->
+  <div class="section">
+    <div class="sec-head">
+      <div class="sec-icon">✏️</div>
+      <div>
+        <div class="sec-title">支払いを登録</div>
+      </div>
+      <div style="margin-left:auto;">
+        <span id="connectionBadge" class="connection-badge offline">
+          <span class="dot-pulse"></span><span id="connectionLabel">接続中…</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- F6 将来プレースホルダー: レシート読取ボタンをここに追加 -->
+    <div class="receipt-placeholder" id="receiptPlaceholder"></div>
+
+    <div class="form-group">
+      <label class="form-label">支払った人</label>
+      <div class="payer-btns" id="payerBtns"></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">用途</label>
+      <input class="form-input" type="text" id="purposeInput" placeholder="ガソリン代・食事など">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">金額（円）</label>
+      <input class="form-input" type="number" id="amountInput"
+             inputmode="numeric" pattern="[0-9]*" placeholder="0" min="0" step="1">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">割り勘対象者</label>
+      <div class="participants-grid" id="participantsGrid"></div>
+    </div>
+
+    <button class="btn-primary" id="submitBtn" onclick="submitPayment()">登録する</button>
+  </div>
+
+  <div class="divider-line"></div>
+
+  <!-- ── F4：サマリー ── -->
+  <div class="section section-tint">
+    <div class="sec-head">
+      <div class="sec-icon">📊</div>
+      <div class="sec-title">合計サマリー</div>
+    </div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">合計金額</div>
+        <div class="summary-value" id="totalAmount">¥0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider-line"></div>
+
+  <!-- ── F3：精算結果 ── -->
+  <div class="section">
+    <div class="sec-head">
+      <div class="sec-icon">🔄</div>
+      <div class="sec-title">精算結果</div>
+    </div>
+    <div id="settlementResult" class="settlement-list">
+      <div class="empty-state">支払いを登録すると精算結果が表示されます</div>
+    </div>
+  </div>
+
+  <div class="divider-line"></div>
+
+  <!-- ── F2：支払い一覧 ── -->
+  <div class="section section-tint">
+    <div class="sec-head">
+      <div class="sec-icon">📋</div>
+      <div class="sec-title">支払い一覧</div>
+    </div>
+    <div id="paymentList" class="payment-list">
+      <div class="empty-state">まだ支払いがありません</div>
+    </div>
+  </div>
+
+</div><!-- /.warikan -->
+
+<!-- ── 編集モーダル ── -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-title">
+      支払いを編集
+      <button class="modal-close" onclick="closeEditModal()">×</button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">支払った人</label>
+      <div class="payer-btns" id="editPayerBtns"></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">用途</label>
+      <input class="form-input" type="text" id="editPurposeInput" placeholder="ガソリン代・食事など">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">金額（円）</label>
+      <input class="form-input" type="number" id="editAmountInput"
+             inputmode="numeric" pattern="[0-9]*" placeholder="0" min="0" step="1">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">割り勘対象者</label>
+      <div class="participants-grid" id="editParticipantsGrid"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeEditModal()">キャンセル</button>
+      <button class="btn-save" onclick="saveEdit()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── フロートナビボタン ── -->
+<a href="index.html" class="float-nav">
+  <span class="fn-icon">📋</span>しおり
+</a>
+
+<!-- ── Firebase SDK (compat) ── -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+// ─── Firebase 初期化 ─────────────────────────────────────────────
+// ⚠️ テストモード稼働中。旅行後にルールを締めるか /payments を削除してください。
+const firebaseConfig = {
+  apiKey: "AIzaSyBQ39cK3p4NGlbd0OlEE1chkkrGuFPx54Y",
+  authDomain: "karuizawa-trip.firebaseapp.com",
+  databaseURL: "https://karuizawa-trip-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "karuizawa-trip",
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ─── 定数 ────────────────────────────────────────────────────────
+const MEMBERS = ['なっちゃん', 'あゆ', 'おゆ', 'のぶ', 'ゆーと'];
+
+// ─── 状態 ────────────────────────────────────────────────────────
+let payments = {};           // { id: { payer, purpose, amount, participants, createdAt } }
+let editingId = null;        // 編集中の支払いID
+
+// ─── フォーム初期化 ───────────────────────────────────────────────
+function buildPayerButtons(containerId, selectedMember) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  MEMBERS.forEach(name => {
+    const btn = document.createElement('button');
+    btn.className = 'payer-btn' + (name === selectedMember ? ' selected' : '');
+    btn.textContent = name;
+    btn.type = 'button';
+    btn.onclick = () => {
+      container.querySelectorAll('.payer-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    };
+    container.appendChild(btn);
+  });
+}
+
+function buildParticipantsGrid(containerId, checkedMembers) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  const checked = checkedMembers || MEMBERS;
+  MEMBERS.forEach(name => {
+    const id = containerId + '_' + name;
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.className = 'participant-check';
+    input.id = id;
+    input.value = name;
+    input.checked = checked.includes(name);
+    const label = document.createElement('label');
+    label.className = 'participant-label';
+    label.htmlFor = id;
+    label.textContent = name;
+    container.appendChild(input);
+    container.appendChild(label);
+  });
+}
+
+// フォームに値をセットする関数（F6 レシート読取から呼び出せるよう独立させてある）
+function setFormValues({ payer, purpose, amount, participants }) {
+  if (payer) {
+    document.querySelectorAll('#payerBtns .payer-btn').forEach(b => {
+      b.classList.toggle('selected', b.textContent === payer);
+    });
+  }
+  if (purpose !== undefined) document.getElementById('purposeInput').value = purpose;
+  if (amount !== undefined) document.getElementById('amountInput').value = amount;
+  if (participants) {
+    MEMBERS.forEach(name => {
+      const el = document.getElementById('participantsGrid_' + name);
+      if (el) el.checked = participants.includes(name);
+    });
+  }
+}
+
+function clearForm() {
+  buildPayerButtons('payerBtns', null);
+  document.getElementById('purposeInput').value = '';
+  document.getElementById('amountInput').value = '';
+  buildParticipantsGrid('participantsGrid', MEMBERS);
+}
+
+// ─── 入力値取得 ──────────────────────────────────────────────────
+function getFormValues(payerBtnId, purposeId, amountId, gridId) {
+  const payerEl = document.querySelector('#' + payerBtnId + ' .payer-btn.selected');
+  const payer = payerEl ? payerEl.textContent : null;
+  const purpose = document.getElementById(purposeId).value.trim();
+  const amount = parseInt(document.getElementById(amountId).value, 10);
+  const participants = [];
+  document.querySelectorAll('#' + gridId + ' .participant-check:checked').forEach(cb => {
+    participants.push(cb.value);
+  });
+  return { payer, purpose, amount, participants };
+}
+
+// ─── F1：登録 ────────────────────────────────────────────────────
+function submitPayment() {
+  const { payer, purpose, amount, participants } = getFormValues(
+    'payerBtns', 'purposeInput', 'amountInput', 'participantsGrid'
+  );
+  if (!payer) { alert('支払った人を選んでください'); return; }
+  if (!purpose) { alert('用途を入力してください'); return; }
+  if (!amount || amount <= 0) { alert('金額を入力してください'); return; }
+  if (participants.length === 0) { alert('対象者を1人以上選んでください'); return; }
+
+  db.ref('payments').push({
+    payer, purpose, amount, participants,
+    createdAt: Date.now(),
+  }).then(() => clearForm())
+    .catch(err => alert('登録に失敗しました: ' + err.message));
+}
+
+// ─── F2：編集 ────────────────────────────────────────────────────
+function openEditModal(id) {
+  editingId = id;
+  const p = payments[id];
+  buildPayerButtons('editPayerBtns', p.payer);
+  document.getElementById('editPurposeInput').value = p.purpose;
+  document.getElementById('editAmountInput').value = p.amount;
+  buildParticipantsGrid('editParticipantsGrid', p.participants);
+  document.getElementById('editModal').classList.add('open');
+}
+
+function closeEditModal() {
+  editingId = null;
+  document.getElementById('editModal').classList.remove('open');
+}
+
+function saveEdit() {
+  if (!editingId) return;
+  const { payer, purpose, amount, participants } = getFormValues(
+    'editPayerBtns', 'editPurposeInput', 'editAmountInput', 'editParticipantsGrid'
+  );
+  if (!payer) { alert('支払った人を選んでください'); return; }
+  if (!purpose) { alert('用途を入力してください'); return; }
+  if (!amount || amount <= 0) { alert('金額を入力してください'); return; }
+  if (participants.length === 0) { alert('対象者を1人以上選んでください'); return; }
+
+  db.ref('payments/' + editingId).update({ payer, purpose, amount, participants })
+    .then(() => closeEditModal())
+    .catch(err => alert('更新に失敗しました: ' + err.message));
+}
+
+// F2：削除
+function deletePayment(id) {
+  const p = payments[id];
+  if (!confirm(`「${p.purpose}」(¥${p.amount.toLocaleString()}) を削除しますか？`)) return;
+  db.ref('payments/' + id).remove()
+    .catch(err => alert('削除に失敗しました: ' + err.message));
+}
+
+// ─── F3：精算計算（最小送金回数） ────────────────────────────────
+function calcSettlement(paymentsObj) {
+  const balance = {};
+  MEMBERS.forEach(m => balance[m] = 0);
+
+  Object.values(paymentsObj).forEach(p => {
+    const n = p.participants.length;
+    if (n === 0) return;
+    const share = Math.floor(p.amount / n);
+    const remainder = p.amount - share * n;
+
+    p.participants.forEach(m => {
+      balance[m] -= share;
+    });
+    // 余りは支払者が負担
+    balance[p.payer] -= remainder;
+    // 支払者はその金額を受け取る権利がある
+    balance[p.payer] += p.amount;
+  });
+
+  // 最小送金回数（貪欲法）
+  const creditors = [];
+  const debtors = [];
+  MEMBERS.forEach(m => {
+    const b = Math.round(balance[m]);
+    if (b > 0) creditors.push({ name: m, amount: b });
+    else if (b < 0) debtors.push({ name: m, amount: -b });
+  });
+  creditors.sort((a, b) => b.amount - a.amount);
+  debtors.sort((a, b) => b.amount - a.amount);
+
+  const transfers = [];
+  let ci = 0, di = 0;
+  while (ci < creditors.length && di < debtors.length) {
+    const c = creditors[ci];
+    const d = debtors[di];
+    const amount = Math.min(c.amount, d.amount);
+    transfers.push({ from: d.name, to: c.name, amount });
+    c.amount -= amount;
+    d.amount -= amount;
+    if (c.amount === 0) ci++;
+    if (d.amount === 0) di++;
+  }
+  return transfers;
+}
+
+// ─── 描画 ────────────────────────────────────────────────────────
+function render(snap) {
+  const data = snap.val() || {};
+  payments = data;
+
+  // createdAt 昇順にソート
+  const sorted = Object.entries(data).sort((a, b) => (a[1].createdAt || 0) - (b[1].createdAt || 0));
+
+  // F2：支払い一覧
+  const listEl = document.getElementById('paymentList');
+  if (sorted.length === 0) {
+    listEl.innerHTML = '<div class="empty-state">まだ支払いがありません</div>';
+  } else {
+    listEl.innerHTML = sorted.map(([id, p]) => `
+      <div class="payment-card">
+        <div class="payment-card-top">
+          <div class="payment-purpose">${escHtml(p.purpose)}</div>
+          <div class="payment-amount">¥${Number(p.amount).toLocaleString()}</div>
+        </div>
+        <div class="payment-meta">
+          支払い：${escHtml(p.payer)}　対象：${p.participants.map(escHtml).join('・')}
+        </div>
+        <div class="payment-actions">
+          <button class="btn-edit" onclick="openEditModal('${id}')">編集</button>
+          <button class="btn-delete" onclick="deletePayment('${id}')">削除</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // F4：サマリー
+  const total = Object.values(data).reduce((s, p) => s + (p.amount || 0), 0);
+  document.getElementById('totalAmount').textContent = '¥' + total.toLocaleString();
+
+  // F3：精算
+  const settlEl = document.getElementById('settlementResult');
+  if (sorted.length === 0) {
+    settlEl.innerHTML = '<div class="empty-state">支払いを登録すると精算結果が表示されます</div>';
+  } else {
+    const transfers = calcSettlement(data);
+    if (transfers.length === 0) {
+      settlEl.innerHTML = '<div class="empty-state">✅ 精算の必要はありません</div>';
+    } else {
+      settlEl.innerHTML = transfers.map(t => `
+        <div class="settlement-row">
+          <span>${escHtml(t.from)}</span>
+          <span class="settlement-arrow">→</span>
+          <span>${escHtml(t.to)}</span>
+          <span class="settlement-amount">¥${t.amount.toLocaleString()}</span>
+        </div>
+      `).join('');
+    }
+  }
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ─── F5：リアルタイム同期 ─────────────────────────────────────────
+db.ref('payments').on('value', render);
+
+// 接続状態の監視
+db.ref('.info/connected').on('value', snap => {
+  const online = snap.val() === true;
+  const badge = document.getElementById('connectionBadge');
+  const label = document.getElementById('connectionLabel');
+  badge.className = 'connection-badge ' + (online ? 'online' : 'offline');
+  label.textContent = online ? 'オンライン' : 'オフライン';
+});
+
+// ─── 初期化 ──────────────────────────────────────────────────────
+buildPayerButtons('payerBtns', null);
+buildParticipantsGrid('participantsGrid', MEMBERS);
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "shiori-preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "http-server", "20260711-12_karuizawa", "-p", "8642", "-c-1"],
+      "port": 8642
+    }
+  ]
+}
