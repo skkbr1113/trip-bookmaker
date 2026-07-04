@@ -2,18 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(python -m http.server 8080)",
-      "PowerShell(\\(Get-Command python -ErrorAction SilentlyContinue\\).Source; \\(Get-Command python3 -ErrorAction SilentlyContinue\\).Source; \\(Get-Command py -ErrorAction SilentlyContinue\\).Source)",
-      "PowerShell(\\(Get-Command node -ErrorAction SilentlyContinue\\).Source; \\(Get-Command npx -ErrorAction SilentlyContinue\\).Source)",
       "Bash(npx --yes serve -p 8080 .)",
       "Bash(git add *)",
       "Bash(git commit -m *)",
       "Bash(git push origin main)",
       "Bash(mkdir -p *)",
-      "PowerShell($f = Get-Item \"20260711-12_karuizawa\\\\index.html\"; $w = Get-Item \"20260711-12_karuizawa\\\\warikan.html\"; \"$\\($f.Length\\) bytes index\"; \"$\\($w.Length\\) bytes warikan\"; \\(Get-Content $f.FullName | Measure-Object -Line\\).Lines; \\(Get-Content $w.FullName | Measure-Object -Line\\).Lines)",
-      "PowerShell($lines = Get-Content \"20260711-12_karuizawa\\\\index.html\"; $out = foreach \\($l in $lines\\) { if \\($l.Length -gt 500\\) { $l.Substring\\(0,200\\) + \"...[BASE64_TRUNCATED]\" } else { $l } }; $out | Out-File -Encoding utf8 \"$env:TEMP\\\\index_trunc.html\"; \"done\")",
-      "PowerShell($orig = [System.IO.File]::ReadAllText\\(\"$PWD\\\\20260711-12_karuizawa\\\\index.html\", [System.Text.Encoding]::UTF8\\); $matches2 = [regex]::Matches\\($orig, 'src=\"\\(data:image/png;base64,[^\"]+\\)\"'\\); \"match count: $\\($matches2.Count\\)\"; $matches2 | ForEach-Object { \"len: $\\($_.Groups[1].Value.Length\\)\" })",
-      "mcp__Claude_Preview__preview_start",
-      "PowerShell($orig = [System.IO.File]::ReadAllText\\(\"$PWD\\\\20260711-12_karuizawa\\\\index.html\", [System.Text.Encoding]::UTF8\\); $m = [regex]::Matches\\($orig, 'src=\"\\(data:image/png;base64,[^\"]+\\)\"'\\); $new = [System.IO.File]::ReadAllText\\(\"$PWD\\\\20260711-12_karuizawa\\\\warikan_v2.html\", [System.Text.Encoding]::UTF8\\); $new = $new.Replace\\('__AV1__', $m[0].Groups[1].Value\\).Replace\\('__AV2__', $m[1].Groups[1].Value\\).Replace\\('__AV3__', $m[2].Groups[1].Value\\).Replace\\('__AV4__', $m[3].Groups[1].Value\\).Replace\\('__AV5__', $m[4].Groups[1].Value\\); $utf8NoBom = New-Object System.Text.UTF8Encoding\\($false\\); [System.IO.File]::WriteAllText\\(\"$PWD\\\\20260711-12_karuizawa\\\\warikan_v2.html\", $new, $utf8NoBom\\); $check = [System.IO.File]::ReadAllText\\(\"$PWD\\\\20260711-12_karuizawa\\\\warikan_v2.html\", [System.Text.Encoding]::UTF8\\); \"placeholders remaining: $\\(\\([regex]::Matches\\($check,'__AV\\\\d__'\\)\\).Count\\)\"; \"size: $\\(\\(Get-Item \"$PWD\\\\20260711-12_karuizawa\\\\warikan_v2.html\"\\).Length\\) bytes\")"
+      "mcp__Claude_Preview__preview_start"
     ]
   }
 }
